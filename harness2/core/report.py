@@ -48,14 +48,16 @@ class Summary:
         return f"{MODE_NAMES.get(self.mode, self.mode)} k={self.k}"
 
     def line(self, bench: str = "") -> str:
-        """LAB reports partial credit and all-criteria pass; the others report one score."""
+        """LAB reports partial credit and all-criteria pass, SRV its pass rate and grade, the
+        others report one score."""
         if not self.n:
             return f"  {self.name}: no graded task"
-        figures = (
-            f"partial {self.score:6.2f}% | pass {self.all_pass:5.1f}%"
-            if bench == "lab"
-            else f"score {self.score:6.2f}%"
-        )
+        if bench == "srv":
+            figures = f"pass {self.all_pass:5.1f}% | grade {self.score:6.2f}%"
+        elif bench == "lab":
+            figures = f"partial {self.score:6.2f}% | pass {self.all_pass:5.1f}%"
+        else:
+            figures = f"score {self.score:6.2f}%"
         pick = (
             f" | picked output: final {self.chose_final} / candidate {self.chose_candidate} / "
             f"base {self.kept_base}"
@@ -162,4 +164,13 @@ def render(summaries: Sequence[Summary], *, title: str = "", bench: str = "") ->
                 f"the fallback rows before comparing this line with any published "
                 f"number.",
             ]
+    if bench == "srv":
+        for s in summaries:
+            if s.n_ungraded:
+                lines += [
+                    "",
+                    f"  NOTE  {s.name}: {s.n_ungraded} task(s) carry no grade -- a run whose "
+                    f"baseline is not calibrated, or whose service never produced metrics, is "
+                    f"unscored and left out of the denominator rather than counted as 0.",
+                ]
     return "\n".join(lines)

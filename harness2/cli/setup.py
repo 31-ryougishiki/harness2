@@ -25,7 +25,7 @@ from harness2 import config, install
 
 def main(argv=None):
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("benchmark", choices=("jb", "lab", "wb"))
+    p.add_argument("benchmark", choices=("jb", "lab", "wb", "srv"))
     p.add_argument(
         "--subset",
         choices=("office", "web", "code"),
@@ -38,6 +38,21 @@ def main(argv=None):
     if args.subset and args.benchmark != "wb":
         p.error("--subset only applies to wb")
     dry = args.dry_run
+    if args.benchmark == "srv":
+        # srv has no upstream checkout to clone and nothing to install from the network: setup
+        # validates SRV_IMAGE and materialises the task skeleton. It returns before the
+        # third-party runner gate and the per-benchmark checkout map below, neither of which
+        # applies to a benchmark whose runtime ships with the Ascend host image.
+        try:
+            install.srv(dry_run=dry)
+        except (OSError, RuntimeError, ValueError) as exc:
+            p.exit(1, f"setup failed: {exc}\n")
+        print(
+            "Setup plan complete."
+            if dry
+            else "Installation complete. Run harness2-check before an experiment."
+        )
+        return 0
     missing = install.missing_runners()
     if missing and not dry:
         p.exit(1, f"setup failed: {missing}\n")

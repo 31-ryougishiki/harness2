@@ -27,7 +27,7 @@ from ..core import library as LIB
 from ..core import schedule as SCHED
 from ..core.spec import BenchmarkAdapter
 
-BENCHES = ("jb", "wb", "lab")
+BENCHES = ("jb", "wb", "lab", "srv")
 WB_SUBSETS = ("office", "web", "code")
 SUBSTRATES = ("oc", "cx")
 
@@ -62,6 +62,10 @@ def make_adapter(
         from ..benchmarks.jobbench import JobBenchAdapter
 
         return JobBenchAdapter(substrate=substrate, split_file=split_file)
+    if bench == "srv":
+        from ..benchmarks.srv import SrvAdapter
+
+        return SrvAdapter(substrate=substrate, split_file=split_file)
     from ..benchmarks.lab import LabAdapter
 
     return LabAdapter(substrate=substrate, split_file=split_file)
@@ -96,7 +100,7 @@ def summary_namespace(adapter: BenchmarkAdapter, k: int, *, seed: int | None, ta
 
 def add_cell_args(p: argparse._ActionsContainer) -> None:
     """The (benchmark, substrate) cell selectors; `p` may be a parser or an argument group."""
-    p.add_argument("--bench", required=True, choices=BENCHES, help="jb | wb | lab")
+    p.add_argument("--bench", required=True, choices=BENCHES, help="jb | wb | lab | srv")
     p.add_argument(
         "--subset", default=None, choices=WB_SUBSETS, help="WB only: office | web | code"
     )

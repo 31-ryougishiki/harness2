@@ -37,6 +37,12 @@ def discover(bench: str, subset: str | None = None) -> dict[str, str]:
             p.parent.relative_to(root).as_posix(): p.parent.relative_to(root).parts[0]
             for p in sorted(root.glob("*/*/task.json"))
         }
+    elif bench == "srv":
+        root = config.DEPENDENCIES / "srv-bench" / "tasks"
+        tasks = {
+            p.parent.relative_to(root).as_posix(): p.parent.relative_to(root).parts[0]
+            for p in sorted(root.glob("*/*/task.json"))
+        }
     elif bench == "wb" and subset in ("office", "web", "code"):
         root = config.wb_repo() / "datasets" / f"wb-bench-{subset}-v1.0" / "tasks"
         tasks = {}

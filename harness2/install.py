@@ -317,3 +317,50 @@ open(sys.argv[1]+"/revision.json", "w").write(json.dumps({"revision": revision})
             dest.rmdir()
         staged.rename(dest)
         shutil.copy2(Path(tmp) / "revision.json", dest / ".harness2-download.json")
+
+
+SRV_TASK_CATEGORIES = ("config", "measure", "code")
+SRV_KIT = ("run_service.sh", "aisbench_example.sh", "README.md")
+
+
+def srv(*, dry_run=False):
+    """Prepare dependencies/srv-bench and prove SRV_IMAGE is set.
+
+    SRV runs inside an Ascend container that this tool neither builds nor pulls: setup
+    validates the variable that names the image, materialises the task skeleton the authoring
+    side fills in, and checks that the launch kit the benchmark ships is present. Nothing is
+    downloaded and no container is touched, so Windows runs this identically.
+    """
+    root = config.DEPENDENCIES / "srv-bench"
+    for rel in [*[f"tasks/{c}" for c in SRV_TASK_CATEGORIES], "baseline", "base_harness"]:
+        target = root / rel
+        print(f"Ensure {target}", flush=True)
+        if not dry_run:
+            target.mkdir(parents=True, exist_ok=True)
+    missing = [n for n in SRV_KIT if not (root / "base_harness" / n).is_file()]
+    if missing:
+        raise RuntimeError(
+            f"launch kit incomplete under {root / 'base_harness'}: missing "
+            f"{', '.join(missing)}; these ship with the repository, so restore them from it "
+            f"rather than recreating them by hand"
+        )
+    absent = [
+        module
+        for module in ("srv_runtime", "srv_grade")
+        if not (config.PKG / "benchmarks" / f"{module}.py").is_file()
+    ]
+    if absent:
+        print(f"Note: {', '.join(absent)} not present yet; a rollout needs both", flush=True)
+    image = config.env("SRV_IMAGE", "")
+    print(f"SRV_IMAGE: {image or '(unset)'}", flush=True)
+    if not image:
+        message = (
+            "SRV_IMAGE is required: set it to the vllm-ascend image this host runs, for example "
+            "SRV_IMAGE=vllm-ascend:0.23.0-a2 (a task never carries the tag)"
+        )
+        if dry_run:
+            print(f"Missing: {message}", flush=True)
+        else:
+            raise config.ConfigError(message)
+    tasks = sorted((root / "tasks").glob("*/*/task.json"))
+    print(f"SRV skeleton ready at {root}: {len(tasks)} task(s)", flush=True)

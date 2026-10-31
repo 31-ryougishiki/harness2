@@ -17,8 +17,10 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
+from pathlib import Path
 
 from . import config
 from .install import PATCHES, missing_runners
@@ -55,6 +57,9 @@ def check(adapter, *, judge=False) -> list[str]:
             errors.append(str(exc))
 
     bench = adapter.spec.name.split("-", 1)[0]
+    if bench == "srv":
+        errors.extend(srv_errors(adapter))
+        return errors
     name = {"jb": "job-bench-eval", "lab": "harvey-labs", "wb": "workbuddy-bench"}[bench]
     repo = config.DEPENDENCIES / name
     for dependency in (name, "opencode"):
@@ -158,3 +163,107 @@ def require_ready(adapter, *, judge=False):
         raise config.ConfigError(
             "Setup incomplete; nothing has run yet:\n  - " + "\n  - ".join(errors)
         )
+
+
+def srv_errors(adapter) -> list[str]:
+    """The srv cell's own readiness: image, task tree, launch kit, marker module, host tools.
+
+    Offline on purpose: no container is started and nothing is measured. The machine checks
+    that only the Ascend host can answer (driver present, image pullable) are the runtime's.
+    """
+    from .benchmarks import srv as S
+
+    errs = []
+    if not S.SRV_DIR.is_dir():
+        errs.append(f"srv task tree missing at {S.SRV_DIR}; run harness2-setup srv")
+    missing_kit = [n for n in S.KIT_NAMES if not (S.KIT_DIR / n).is_file()]
+    if missing_kit:
+        errs.append(f"launch kit incomplete under {S.KIT_DIR}: {', '.join(missing_kit)} missing")
+    for module in ("srv_runtime", "srv_grade"):
+        if not (config.PKG / "benchmarks" / f"{module}.py").is_file():
+            errs.append(
+                f"harness2/benchmarks/{module}.py is missing; srv cannot run or mark a rollout "
+                f"without it (CONTRACT.md sections 5 and 6)"
+            )
+    if not shutil.which("docker"):
+        errs.append("docker is not on PATH; srv runs its service inside a container")
+    if os.name != "nt":
+        dev = Path("/dev")
+        if dev.is_dir() and not any(dev.glob("davinci*")):
+            errs.append(
+                "no /dev/davinci* device node: the Ascend driver is not exposed to this host"
+            )
+    try:
+        tasks = adapter.tasks()
+    except (OSError, RuntimeError, ValueError) as exc:
+        errs.append(str(exc))
+    else:
+        print(f"  srv: {len(tasks)} task(s) discovered", flush=True)
+    # adapter.preflight() is not repeated here: check() already ran it once, above.
+    return errs
+
+
+def srv_plan(adapter) -> list[str]:
+    """What a real srv run needs on this host, and which of it is present. Reads only."""
+    from .benchmarks import srv as S
+
+    try:
+        n_tasks = len(adapter.tasks())
+    except (OSError, RuntimeError, ValueError):
+        n_tasks = 0
+    image = config.env(S.IMAGE_ENV, "")
+    rows = [
+        ("cell", f"{adapter.spec.name}/{adapter.substrate.name} "
+                 f"install_mode={adapter.spec.install_mode}"),
+        ("image", f"{S.IMAGE_ENV}={image or '(unset)'}"),
+        ("model", f"{S.MODEL}, context {S.MODEL_CTX_TOKENS} tokens, YaRN off"),
+        ("scenarios", "4k2k/16k1k measurable; 64k1k/128k1k exceed the window and are skipped"),
+        ("tasks", f"{n_tasks} discovered under {S.SRV_DIR / 'tasks'}"),
+        ("launch kit", f"{', '.join(S.KIT_NAMES)} under {S.KIT_DIR}"),
+        ("docker", "on PATH" if shutil.which("docker") else "MISSING"),
+        ("rollout", "substrate argv built by the adapter (bun/opencode or codex), run detached"),
+    ]
+    out = ["srv plan (dry run: nothing is started, no container, no model call)"]
+    out += [f"  {key:<11} {value}" for key, value in rows]
+    out += [
+        "  next        run harness2-check --bench srv on the Ascend host; a real run needs "
+        "docker, the driver and SRV_IMAGE",
+    ]
+    return out
+
+
+def main(argv: list[str] | None = None) -> int:
+    """Readiness as a command: python -m harness2.preflight --bench srv [--dry-run]."""
+    import argparse
+
+    p = argparse.ArgumentParser(
+        prog="python -m harness2.preflight",
+        description="Benchmark dependency and runtime readiness checks.",
+    )
+    p.add_argument("--bench", required=True, help="jb | wb | lab | srv")
+    p.add_argument("--subset", default=None, choices=("office", "web", "code"))
+    p.add_argument("--substrate", default="oc", choices=("oc", "cx"))
+    p.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="print the plan for this cell and start nothing (srv: offline by construction)",
+    )
+    args = p.parse_args(argv)
+    from .cli._common import make_adapter
+
+    adapter = make_adapter(args.bench, args.subset, args.substrate)
+    if args.dry_run and args.bench == "srv":
+        print("\n".join(srv_plan(adapter)))
+        return 0
+    errors = check(adapter, judge=True)
+    for error in errors:
+        print(f"FAIL: {error}")
+    if errors:
+        print(f"Setup incomplete: {len(errors)} issue(s).")
+        return 1
+    print(f"Ready: {adapter.spec.name}/{args.substrate}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
