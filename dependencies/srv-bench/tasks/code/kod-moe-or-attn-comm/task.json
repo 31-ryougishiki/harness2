@@ -1,0 +1,61 @@
+{
+  "id": "kod-moe-or-attn-comm",
+  "category": "code",
+  "domain": "code",
+  "title": "attention / MoE 前后处理与通信重叠的 Python 层优化",
+  "mode": "patch",
+  "timeout_s": 2400,
+  "scenarios": [
+    "4k2k",
+    "16k1k"
+  ],
+  "baseline": {
+    "throughput_req_s": null,
+    "ttft_ms_p90": null,
+    "tpot_ms": null,
+    "accuracy": null
+  },
+  "thresholds": {
+    "throughput_req_s": {
+      "kind": "rel_gain",
+      "min_pct": 2.0
+    },
+    "accuracy": {
+      "kind": "not_below",
+      "tolerance_pct": 0.5
+    }
+  },
+  "allowed_paths": [
+    "vllm_ascend/ops/fused_moe/",
+    "vllm_ascend/attention/",
+    "vllm_ascend/ops/flashcomm2_oshard_manager.py"
+  ],
+  "forbidden_paths": [
+    "tests/",
+    "benchmarks/",
+    "scripts/",
+    "csrc/",
+    "cmake/",
+    "docs/",
+    "examples/",
+    "tools/",
+    ".github/",
+    "setup.py",
+    "pyproject.toml"
+  ],
+  "constraints": [
+    "只允许修改 allowed_paths 内的文件；新增文件同样必须落在 allowed_paths 内",
+    "不得修改测试与基准脚本，即 tests/、benchmarks/、scripts/ 下的任何内容",
+    "不得改动 csrc/ 与 cmake/：环境不提供重新编译 Ascend 算子的工具链",
+    "不得修改模型权重、量化配置或采样参数默认值",
+    "不得改变输出语义：精度（gsm8k）下降不得超过容差",
+    "不得引入第三方依赖，只能使用镜像内已有的库",
+    "patch.diff 必须是相对仓库根的 git diff，且只包含 allowed_paths 内的文件",
+    "metrics.json 里的数值必须来自你自己的测量，测不到就填 null，不得伪造"
+  ],
+  "deliverables": [
+    "patch.diff",
+    "metrics.json",
+    "report.md"
+  ]
+}

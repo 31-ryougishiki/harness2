@@ -1,0 +1,43 @@
+{
+  "id": "cfg-tp-choice",
+  "category": "config",
+  "domain": "config",
+  "title": "在 8 卡 Ascend 上为 Qwen3-8B 选择张量并行度",
+  "mode": "single",
+  "timeout_s": 3600,
+  "scenarios": [
+    "4k2k",
+    "16k1k"
+  ],
+  "baseline": {
+    "throughput_req_s": null,
+    "ttft_ms_p90": null,
+    "tpot_ms": null,
+    "accuracy": null
+  },
+  "thresholds": {
+    "throughput_req_s": {
+      "kind": "rel_gain",
+      "min_pct": 3.0
+    },
+    "accuracy": {
+      "kind": "not_below",
+      "tolerance_pct": 0.5
+    }
+  },
+  "constraints": [
+    "默认启动配置固定为 tensor-parallel-size=8，不得跳过该配置的实测",
+    "只允许改服务启动参数，不得修改 vLLM 源码或镜像内容",
+    "所选并行度必须能整除模型注意力/KV 头数，服务起不来即视为该组失败",
+    "不得修改模型权重、tokenizer、量化方式与镜像（镜像由 SRV_IMAGE 注入）",
+    "不得修改或替换 ais_bench 压测配置与 gsm8k 数据集",
+    "不得请求超出模型上下文的 64k1k / 128k1k 场景",
+    "不得手写、估算或推测 metrics.json 中的数值，未测到写 null 并置 ok=false",
+    "服务必须能稳定启动并跑完全部要求场景"
+  ],
+  "deliverables": [
+    "metrics.json",
+    "run.sh",
+    "report.md"
+  ]
+}

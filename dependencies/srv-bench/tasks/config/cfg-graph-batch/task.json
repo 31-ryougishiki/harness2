@@ -1,0 +1,43 @@
+{
+  "id": "cfg-graph-batch",
+  "category": "config",
+  "domain": "config",
+  "title": "图捕获/编译开关与 max-num-seqs 联合寻优",
+  "mode": "single",
+  "timeout_s": 3600,
+  "scenarios": [
+    "4k2k",
+    "16k1k"
+  ],
+  "baseline": {
+    "throughput_req_s": null,
+    "ttft_ms_p90": null,
+    "tpot_ms": null,
+    "accuracy": null
+  },
+  "thresholds": {
+    "throughput_req_s": {
+      "kind": "rel_gain",
+      "min_pct": 3.0
+    },
+    "accuracy": {
+      "kind": "not_below",
+      "tolerance_pct": 0.5
+    }
+  },
+  "constraints": [
+    "只允许改服务启动参数，不得修改 vLLM 源码或镜像内容",
+    "图捕获与编译相关开关必须保持精度不退化，不得用降低精度的方式换吞吐",
+    "任何一组参数导致服务起不来，该组必须记录失败原因，不得隐瞒",
+    "不得修改模型权重、tokenizer、量化方式与镜像（镜像由 SRV_IMAGE 注入）",
+    "不得修改或替换 ais_bench 压测配置与 gsm8k 数据集",
+    "不得请求超出模型上下文的 64k1k / 128k1k 场景",
+    "不得手写、估算或推测 metrics.json 中的数值，未测到写 null 并置 ok=false",
+    "服务必须能稳定启动并跑完全部要求场景"
+  ],
+  "deliverables": [
+    "metrics.json",
+    "run.sh",
+    "report.md"
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "id": "msr-accuracy",
+  "category": "measure",
+  "domain": "measure",
+  "title": "在可用服务上跑 gsm8k 精度并与 perf 结果合并上报",
+  "mode": "single",
+  "timeout_s": 2400,
+  "scenarios": [
+    "4k2k",
+    "16k1k"
+  ],
+  "baseline": {
+    "throughput_req_s": null,
+    "ttft_ms_p90": null,
+    "tpot_ms": null,
+    "accuracy": null
+  },
+  "thresholds": {},
+  "accuracy": true,
+  "constraints": [
+    "精度数据集必须是 gsm8k_gen_0_shot_cot_chat_prompt.py",
+    "accuracy 必须是 0~100 的百分数，且能被解析为数字",
+    "精度与性能必须来自同一份 metrics.json，不得拼凑不同服务的数字",
+    "不得修改模型权重、tokenizer、量化方式与镜像（镜像由 SRV_IMAGE 注入）",
+    "不得修改或替换 ais_bench 压测配置与 gsm8k 数据集",
+    "不得请求超出模型上下文的 64k1k / 128k1k 场景",
+    "不得手写、估算或推测 metrics.json 中的数值，未测到写 null 并置 ok=false",
+    "服务必须能稳定启动并跑完全部要求场景"
+  ],
+  "deliverables": [
+    "metrics.json",
+    "run.sh",
+    "report.md"
+  ]
+}
