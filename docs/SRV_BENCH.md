@@ -109,12 +109,11 @@ packages' own `verify.py` rejects it.
 
 ## Known gaps
 
-1. `harness2-setup` and `harness2-check` still declare their own `choices=("jb", "lab", "wb")`
-   tuples, so `--bench srv` is rejected by argparse before this adapter is reached. One line
-   each is the whole fix (`harness2/cli/check.py` and `harness2/cli/setup.py`); both files were
-   outside this change's file boundary, so the working entry point is
-   `python -m harness2.preflight --bench srv --dry-run` and `make_adapter("srv", ...)`.
-   `harness2/install.srv()` exists and is exercised directly for the same reason.
+1. `harness2-setup srv` and `harness2-check --bench srv` both accept `srv`: `harness2/cli/check.py`
+   reuses `BENCHES` and `harness2/cli/setup.py` dispatches to `install.srv()` before its
+   other-benchmark branch. A host without docker, `SRV_IMAGE` or an executor checkout still
+   exits non-zero -- that is the readiness report, not a rejected flag.
+   `python -m harness2.preflight --bench srv --dry-run` prints the same plan without it.
 2. The launcher is exercised offline with a stand-in command (argv construction, workspace
    seeding, prompt composition, stream and log files, non-zero exit); the real `bun run` and
    `codex exec` invocations need the pinned checkouts and a reachable model route, so they are

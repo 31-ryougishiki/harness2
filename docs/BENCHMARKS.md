@@ -122,3 +122,37 @@ the improver never receives verifier output. Missing verifier results remain
 unscored. Runs live under `runs/wb/<subset>/`.
 
 For Codex, start the bridge with `harness2-bridge --host 0.0.0.0` so that the containers can reach it.
+
+## SRV
+
+Inference-serving tuning on Ascend NPUs. Nine task packages in three
+categories: `config` (find a better serving configuration), `measure` (drive
+AISBench correctly for pure prefill, pure decode and accuracy), and `code`
+(profile a vLLM-Ascend checkout, change Python, and beat the reference
+configuration). Tasks live under `dependencies/srv-bench/tasks/`, so setup
+downloads nothing: it checks the environment and proves `SRV_IMAGE` is set.
+
+```bash
+export SRV_IMAGE=<vllm-ascend image tag>
+harness2-setup srv
+harness2-check --bench srv
+harness2 --bench srv --k 1 --mode parallel
+harness2-judge --bench srv --k 1 --mode parallel
+harness2-report --bench srv --k 1 --mode parallel
+```
+
+Sequential recursion runs the same commands with `--mode sequential`.
+
+A rollout brings one container up on the NPU host, starts the service inside
+it (a single instance, or 1P1D with prefix caching on the prefill side and off
+on decode), drives AISBench, and writes `metrics.json`. Scenarios are 4k2k and
+16k1k on a 32768-token window; 64k1k and 128k1k are recorded as skipped with a
+reason rather than counted as failures. `config` and `code` tasks are graded
+against a measured baseline, so a task whose `baseline` is still `null` stays
+unscored -- never zero -- until it is calibrated on that host.
+
+See [SRV_BENCH.md](SRV_BENCH.md) for the contract the two halves share and
+[SRV_BENCH_VALIDATION_PLAN.md](SRV_BENCH_VALIDATION_PLAN.md) for the staged
+bring-up. An executor with network access can read the upstream pull request a
+`code` task is built around, so block `github.com` for these runs -- see
+[Web access](EXPERIMENTS.md#web-access).

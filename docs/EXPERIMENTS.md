@@ -103,6 +103,11 @@ hosts for the executor to reduce access to benchmark data and grading criteria:
 - `huggingface.co`, `hf.co`, and `*.hf.co`
 - `github.com` and `raw.githubusercontent.com`, for benchmark repositories
 
+SRV makes this part of the task itself: each `code` task is built around a merged
+upstream performance pull request, so an executor that reaches `github.com` or
+`api.github.com` can read the very change it is asked to rediscover. Block both
+for SRV runs as well.
+
 Setup itself needs these hosts to download dependencies and data. Codex runs
 with its sandbox disabled, so apply restrictions at the network level, such as
 an egress firewall or DNS policy on the executor host, rather than relying on a
